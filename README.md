@@ -6,8 +6,8 @@ It contains slight modifications to make the project easily runnable, but functi
 
 ## Setup
 
-The project can either be run through `goreman start` or with multiple terminal windows \
-If you wish to run it with goreman please install goreman first with the following command
+This project should be run with `goreman` \
+If do not have goreman installed already please install it with:
 
     go install github.com/mattn/goreman@latest
 
@@ -26,4 +26,4 @@ An example execution of three nodes can easily be run in one terminal, if gorema
 
     goreman start
 
-The code can also be run by manually starting nodes in different terminal windows. If there is any additional confusion regarding how to start an individual node, please look at the example execution in the **Procfile** file
+The configuration of the startup can be modified by changing the **Procfile** file. For example, more nodes can be added to the cluster, or ports can be changed.
