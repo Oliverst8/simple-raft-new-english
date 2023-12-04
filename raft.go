@@ -1,11 +1,13 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"log"
 	"math/rand"
 	"net/http"
 	"net/rpc"
+	"strings"
 	"time"
 )
 
@@ -241,7 +243,7 @@ func (rf *Raft) sendRequestVote(serverID int, args VoteArgs, reply *VoteReply) {
 	if reply.VoteGranted {
 		rf.voteCount++
 	}
-	
+
 	if rf.voteCount >= len(rf.nodes)/2+1 {
 		rf.toLeaderC <- true
 	}
@@ -334,4 +336,27 @@ func (rf *Raft) getLastTerm() int {
 		return 0
 	}
 	return rf.log[rlen-1].LogTerm
+}
+
+func main() {
+	port := flag.String("port", ":9091", "rpc listen port")
+	cluster := flag.String("cluster", "127.0.0.1:9091", "comma sep")
+	id := flag.Int("id", 1, "node ID")
+
+	flag.Parse()
+	clusters := strings.Split(*cluster, ",")
+
+	ns := make(map[int]*node)
+	for k, v := range clusters {
+		ns[k] = newNode(v)
+	}
+
+	raft := &Raft{}
+	raft.me = *id
+	raft.nodes = ns
+	raft.rpc(*port)
+	raft.start()
+
+	select {}
+
 }
