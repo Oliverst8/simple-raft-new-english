@@ -16,7 +16,7 @@ type node struct {
 	address string
 }
 
-// 新建节点
+// Create new node
 func newNode(address string) *node {
 	node := &node{}
 	node.address = address
@@ -51,17 +51,17 @@ type Raft struct {
 	votedFor    int
 	voteCount   int
 
-	// 日志条目集合
+	// Collection of log entries
 	log []LogEntry
 
-	// 被提交的最大索引
+	// Maximum index submitted
 	commitIndex int
-	// 被应用到状态机的最大索引
+	// The maximum index to be applied to the state machine
 	lastApplied int
 
-	// 保存需要发送给每个节点的下一个条目索引
+	// Save the index of the next entry that needs to be sent to each node
 	nextIndex []int
-	// 保存已经复制给每个节点日志的最高索引
+	// Save the highest index of the log that has been copied to each node
 	matchIndex []int
 
 	// channels
@@ -91,14 +91,14 @@ func (rf *Raft) RequestVote(args VoteArgs, reply *VoteReply) error {
 // Heartbeat rpc method
 func (rf *Raft) Heartbeat(args HeartbeatArgs, reply *HeartbeatReply) error {
 
-	// 如果 leader 节点小于当前节点 term
+	//If the leader node is smaller than the current node term
 	if args.Term < rf.currentTerm {
 		reply.Success = false
 		reply.Term = rf.currentTerm
 		return nil
 	}
 
-	// 如果只是 heartbeat
+	// if only heartbeat
 	rf.heartbeatC <- true
 	if len(args.Entries) == 0 {
 		reply.Success = true
@@ -106,10 +106,10 @@ func (rf *Raft) Heartbeat(args HeartbeatArgs, reply *HeartbeatReply) error {
 		return nil
 	}
 
-	// 如果有 entries
-	// leader 维护的 LogIndex 大于当前 Follower 的 LogIndex
-	// 代表当前 Follower 失联过，所以 Follower 要告知 Leader 它当前
-	// 的最大索引，以便下次心跳 Leader 返回
+	// If there are entries
+	// The LogIndex maintained by the leader is greater than the current Follower's LogIndex
+	// It means that the current Follower has lost contact, so the Follower needs to inform the Leader that it is currently
+	// The maximum index so that the next heartbeat Leader returns
 	if args.PrevLogIndex > rf.getLastIndex() {
 		reply.Success = false
 		reply.Term = rf.currentTerm
@@ -172,7 +172,7 @@ func (rf *Raft) start() {
 					fmt.Printf("Node: %d, I'm leader\n", rf.me)
 					rf.state = Leader
 
-					// 初始化 peers 的 nextIndex 和 matchIndex
+					// Initialize nextIndex and matchIndex of peers
 					rf.nextIndex = make([]int, len(rf.nodes))
 					rf.matchIndex = make([]int, len(rf.nodes))
 					for i := range rf.nodes {
@@ -203,9 +203,9 @@ type VoteArgs struct {
 }
 
 type VoteReply struct {
-	//当前任期号， 以便候选人去更新自己的任期号
+	//The current term number, so that candidates can update their term number
 	Term int
-	//候选人赢得此张选票时为真
+	//True if the candidate wins this vote
 	VoteGranted bool
 }
 
@@ -232,7 +232,7 @@ func (rf *Raft) sendRequestVote(serverID int, args VoteArgs, reply *VoteReply) {
 	defer client.Close()
 	client.Call("Raft.RequestVote", args, reply)
 
-	// 当前candidate节点无效
+	// The current candidate node is invalid
 	if reply.Term > rf.currentTerm {
 		rf.currentTerm = reply.Term
 		rf.state = Follower
@@ -253,13 +253,13 @@ type HeartbeatArgs struct {
 	Term     int
 	LeaderID int
 
-	// 新日志之前的索引
+	// Index before new log
 	PrevLogIndex int
-	// PrevLogIndex 的任期号
+	// The term number of PrevLogIndex
 	PrevLogTerm int
-	// 准备存储的日志条目（表示心跳时为空）
+	// Log entries to prepare for storage (null when indicating a heartbeat)
 	Entries []LogEntry
-	// Leader 已经commit的索引值
+	// Index value that Leader has committed
 	LeaderCommit int
 }
 
@@ -267,7 +267,7 @@ type HeartbeatReply struct {
 	Success bool
 	Term    int
 
-	// 如果 Follower Index小于 Leader Index， 会告诉 Leader 下次开始发送的索引位置
+	// If the Follower Index is smaller than the Leader Index, the Leader will be told the index position to start sending next time.
 	NextIndex int
 }
 
@@ -279,8 +279,8 @@ func (rf *Raft) broadcastHeartbeat() {
 		args.LeaderID = rf.me
 		args.LeaderCommit = rf.commitIndex
 
-		// 计算 preLogIndex 、preLogTerm
-		// 提取 preLogIndex - baseIndex 之后的entry，发送给 follower
+		// Calculate preLogIndex and preLogTerm
+		// Extract entries after preLogIndex - baseIndex and send them to the follower
 		prevLogIndex := rf.nextIndex[i] - 1
 		if rf.getLastIndex() > prevLogIndex {
 			args.PrevLogIndex = prevLogIndex
@@ -305,14 +305,15 @@ func (rf *Raft) sendHeartbeat(serverID int, args HeartbeatArgs, reply *Heartbeat
 	defer client.Close()
 	client.Call("Raft.Heartbeat", args, reply)
 
-	// 如果 leader 节点落后于 follower 节点
+	// If the leader node lags behind the follower node
 	if reply.Success {
 		if reply.NextIndex > 0 {
 			rf.nextIndex[serverID] = reply.NextIndex
 			rf.matchIndex[serverID] = rf.nextIndex[serverID] - 1
 		}
 	} else {
-		// 如果 leader 的 term 小于 follower 的 term， 需要将 leader 转变为 follower 重新选举
+		// If the leader's term is less than the follower's term,
+		// the leader must convert to a follower and re-initiate an election
 		if reply.Term > rf.currentTerm {
 			rf.currentTerm = reply.Term
 			rf.state = Follower
