@@ -107,9 +107,10 @@ func (rf *Raft) Heartbeat(args HeartbeatArgs, reply *HeartbeatReply) error {
 	}
 
 	// If there are entries
-	// The LogIndex maintained by the leader is greater than the current Follower's LogIndex
-	// It means that the current Follower has lost contact, so the Follower needs to inform the Leader that it is currently
-	// The maximum index so that the next heartbeat Leader returns
+	// The LogIndex maintained by the leader is greater than the current LogIndex of the Follower
+	// This indicates that the current Follower was previously disconnected,
+	// so the Follower must inform the Leader of its current maximum index
+	// to allow the Leader to return it in the next heartbeat
 	if args.PrevLogIndex > rf.getLastIndex() {
 		reply.Success = false
 		reply.Term = rf.currentTerm
